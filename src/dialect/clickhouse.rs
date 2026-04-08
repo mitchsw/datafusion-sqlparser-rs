@@ -15,9 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use crate::dialect::Dialect;
+use crate::ast::Expr;
+use crate::dialect::{Dialect, Precedence};
 use crate::keywords::Keyword;
-use crate::parser::Parser;
+use crate::parser::{Parser, ParserError};
+use crate::tokenizer::Token;
 
 /// A [`Dialect`] for [ClickHouse](https://clickhouse.com/).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -159,5 +161,68 @@ impl Dialect for ClickHouseDialect {
             return false;
         }
         explicit || self.is_column_alias(kw, parser)
+    }
+
+    /// See <https://clickhouse.com/docs/sql-reference/operators#conditional-operator>
+    fn supports_ternary_operator(&self) -> bool {
+        true
+    }
+
+    fn get_next_precedence(&self, parser: &Parser) -> Option<Result<u8, ParserError>> {
+        let token = &parser.peek_token_ref().token;
+        match token {
+            // Bare `?` is the ternary operator; numbered placeholders like `?1` are not.
+            Token::Placeholder(s) if s == "?" => {
+                Some(Ok(self.prec_value(Precedence::Ternary)))
+            }
+            // ClickHouse does not use `:` as an infix operator (no Snowflake-style
+            // variant access). Return unknown precedence so the Pratt loop leaves
+            // it for the ternary handler to consume as a delimiter.
+            Token::Colon => Some(Ok(self.prec_unknown())),
+            _ => None,
+        }
+    }
+
+    fn parse_infix(
+        &self,
+        parser: &mut Parser,
+        expr: &Expr,
+        _precedence: u8,
+    ) -> Option<Result<Expr, ParserError>> {
+        match &parser.peek_token_ref().token {
+            Token::Placeholder(s) if s == "?" => {
+                Some(self.parse_ternary_expr(parser, expr.clone()))
+            }
+            _ => None,
+        }
+    }
+}
+
+impl ClickHouseDialect {
+    fn parse_ternary_expr(
+        &self,
+        parser: &mut Parser,
+        condition: Expr,
+    ) -> Result<Expr, ParserError> {
+        // Consume the `?` token.
+        parser.next_token();
+
+        // The then-expression runs until the matching `:`. Because we
+        // override `Token::Colon` to have unknown precedence for ClickHouse,
+        // `parse_expr` will stop before consuming it.
+        let if_true = parser.parse_expr()?;
+
+        parser.expect_token(&Token::Colon)?;
+
+        // Right-associative: use (ternary_prec - 1) so a subsequent `?`
+        // at the same precedence level is consumed into this else-expression.
+        let ternary_prec = self.prec_value(Precedence::Ternary);
+        let if_false = parser.parse_subexpr(ternary_prec - 1)?;
+
+        Ok(Expr::Ternary {
+            condition: Box::new(condition),
+            if_true: Box::new(if_true),
+            if_false: Box::new(if_false),
+        })
     }
 }

@@ -1317,6 +1317,17 @@ pub enum Expr {
     Lambda(LambdaFunction),
     /// Checks membership of a value in a JSON array
     MemberOf(MemberOf),
+    /// Ternary conditional operator: `condition ? if_true : if_false`
+    ///
+    /// [ClickHouse](https://clickhouse.com/docs/sql-reference/operators#conditional-operator)
+    Ternary {
+        /// The condition expression evaluated for truthiness.
+        condition: Box<Expr>,
+        /// The expression returned when the condition is true.
+        if_true: Box<Expr>,
+        /// The expression returned when the condition is false.
+        if_false: Box<Expr>,
+    },
 }
 
 impl Expr {
@@ -2146,6 +2157,13 @@ impl fmt::Display for Expr {
             Expr::Prior(expr) => write!(f, "PRIOR {expr}"),
             Expr::Lambda(lambda) => write!(f, "{lambda}"),
             Expr::MemberOf(member_of) => write!(f, "{member_of}"),
+            Expr::Ternary {
+                condition,
+                if_true,
+                if_false,
+            } => {
+                write!(f, "{condition} ? {if_true} : {if_false}")
+            }
         }
     }
 }

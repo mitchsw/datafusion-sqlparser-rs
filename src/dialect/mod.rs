@@ -506,6 +506,18 @@ pub trait Dialect: Debug + Any {
         false
     }
 
+    /// Returns true if the dialect supports the ternary conditional operator
+    /// `condition ? expr_if_true : expr_if_false`.
+    ///
+    /// ```sql
+    /// SELECT x > 0 ? 'positive' : 'non-positive';
+    /// ```
+    ///
+    /// [ClickHouse](https://clickhouse.com/docs/sql-reference/operators#conditional-operator)
+    fn supports_ternary_operator(&self) -> bool {
+        false
+    }
+
     /// Returns true if the dialect supports multiple variable assignment
     /// using parentheses in a `SET` variable declaration.
     ///
@@ -936,6 +948,7 @@ pub trait Dialect: Debug + Any {
             Precedence::UnaryNot => 15,
             Precedence::And => 10,
             Precedence::Or => 5,
+            Precedence::Ternary => 3,
         }
     }
 
@@ -1668,8 +1681,12 @@ pub enum Precedence {
     UnaryNot,
     /// Logical `AND`.
     And,
-    /// Logical `OR` (lowest precedence).
+    /// Logical `OR`.
     Or,
+    /// Ternary conditional `? :` (lowest operator precedence).
+    ///
+    /// [ClickHouse](https://clickhouse.com/docs/sql-reference/operators#conditional-operator)
+    Ternary,
 }
 
 impl dyn Dialect {
