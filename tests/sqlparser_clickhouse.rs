@@ -547,6 +547,7 @@ fn parse_clickhouse_data_types() {
         " b1 Int8, b2 Int16, b3 Int32, b4 Int64, b5 Int128, b6 Int256,",
         " c1 Float32, c2 Float64,",
         " d1 Date32, d2 DateTime64(3), d3 DateTime64(3, 'UTC'),",
+        " d4 DateTime('UTC'), d5 DateTime('Asia/Istanbul'),",
         " e1 FixedString(255),",
         " f1 LowCardinality(Int32)",
         ") ORDER BY (a1)",
@@ -580,6 +581,11 @@ fn parse_clickhouse_data_types() {
                     column_def("d1".into(), DataType::Date32),
                     column_def("d2".into(), DataType::Datetime64(3, None)),
                     column_def("d3".into(), DataType::Datetime64(3, Some("UTC".into()))),
+                    column_def("d4".into(), DataType::DatetimeTz("UTC".into())),
+                    column_def(
+                        "d5".into(),
+                        DataType::DatetimeTz("Asia/Istanbul".into()),
+                    ),
                     column_def("e1".into(), DataType::FixedString(255)),
                     column_def(
                         "f1".into(),
@@ -590,6 +596,12 @@ fn parse_clickhouse_data_types() {
         }
         _ => unreachable!(),
     }
+}
+
+#[test]
+fn parse_clickhouse_datetime_with_timezone() {
+    let sql = "CREATE TABLE t (dt DateTime('Europe/London')) ENGINE = MergeTree ORDER BY (dt)";
+    clickhouse_and_generic().verified_stmt(sql);
 }
 
 #[test]

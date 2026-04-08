@@ -11795,7 +11795,22 @@ impl<'a> Parser<'a> {
                 Keyword::UUID => Ok(DataType::Uuid),
                 Keyword::DATE => Ok(DataType::Date),
                 Keyword::DATE32 => Ok(DataType::Date32),
-                Keyword::DATETIME => Ok(DataType::Datetime(self.parse_optional_precision()?)),
+                Keyword::DATETIME => {
+                    if self.consume_token(&Token::LParen) {
+                        if matches!(self.peek_token_ref().token, Token::SingleQuotedString(_))
+                        {
+                            let tz = self.parse_literal_string()?;
+                            self.expect_token(&Token::RParen)?;
+                            Ok(DataType::DatetimeTz(tz))
+                        } else {
+                            let precision = self.parse_literal_uint()?;
+                            self.expect_token(&Token::RParen)?;
+                            Ok(DataType::Datetime(Some(precision)))
+                        }
+                    } else {
+                        Ok(DataType::Datetime(None))
+                    }
+                }
                 Keyword::DATETIME64 => {
                     self.prev_token();
                     let (precision, time_zone) = self.parse_datetime_64()?;

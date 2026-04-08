@@ -366,6 +366,12 @@ pub enum DataType {
     ///
     /// [1]: https://dev.mysql.com/doc/refman/8.0/en/datetime.html
     Datetime(Option<u64>),
+    /// Datetime with timezone, see [ClickHouse][1].
+    ///
+    /// To represent `DateTime` without a timezone, use [Datetime(None)][DataType::Datetime].
+    ///
+    /// [1]: https://clickhouse.com/docs/sql-reference/data-types/datetime
+    DatetimeTz(String),
     /// Datetime with time precision and optional timezone, see [ClickHouse][1].
     ///
     /// [1]: https://clickhouse.com/docs/en/sql-reference/data-types/datetime64
@@ -674,6 +680,9 @@ impl fmt::Display for DataType {
             }
             DataType::Datetime(precision) => {
                 format_type_with_optional_length(f, "DATETIME", precision, false)
+            }
+            DataType::DatetimeTz(tz) => {
+                write!(f, "DateTime('{tz}')")
             }
             DataType::Timestamp(precision, timezone_info) => {
                 format_datetime_precision_and_tz(f, "TIMESTAMP", precision, timezone_info)
