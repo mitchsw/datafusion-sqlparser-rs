@@ -1486,6 +1486,41 @@ fn test_insert_query_with_format_clause() {
 }
 
 #[test]
+fn test_format_and_settings_without_from() {
+    fn parse_query(sql: &str) -> Query {
+        match clickhouse().verified_stmt(sql) {
+            Statement::Query(q) => *q,
+            _ => panic!("expected Query for: {sql}"),
+        }
+    }
+
+    // FORMAT is a query-level clause, not an implicit alias
+    let q = parse_query("SELECT 1 FORMAT JSON");
+    assert_eq!(q.format_clause, Some(FormatClause::Identifier(Ident::new("JSON"))));
+
+    // FORMAT NULL variant
+    let q = parse_query("SELECT 1 FORMAT NULL");
+    assert_eq!(q.format_clause, Some(FormatClause::Null));
+
+    // Aliased expression + FORMAT
+    let q = parse_query("SELECT 1 AS val FORMAT JSON");
+    assert_eq!(q.format_clause, Some(FormatClause::Identifier(Ident::new("JSON"))));
+
+    // Explicit `AS FORMAT` is an alias, not a format clause
+    let q = parse_query("SELECT 1 AS FORMAT");
+    assert_eq!(q.format_clause, None);
+
+    // SETTINGS without FROM
+    let q = parse_query("SELECT 1 SETTINGS max_threads = 1");
+    assert!(q.settings.is_some());
+
+    // Both SETTINGS and FORMAT without FROM
+    let q = parse_query("SELECT 1 SETTINGS max_threads = 1 FORMAT JSON");
+    assert!(q.settings.is_some());
+    assert_eq!(q.format_clause, Some(FormatClause::Identifier(Ident::new("JSON"))));
+}
+
+#[test]
 fn parse_create_table_on_commit_and_as_query() {
     let sql = r#"CREATE LOCAL TEMPORARY TABLE test ON COMMIT PRESERVE ROWS AS SELECT 1"#;
     match clickhouse_and_generic().verified_stmt(sql) {
