@@ -13275,11 +13275,23 @@ impl<'a> Parser<'a> {
                 };
 
                 let table_name = self.parse_object_name(false)?;
+                let format_clause = if self.dialect.supports_select_format()
+                    && self.parse_keyword(Keyword::FORMAT)
+                {
+                    if self.parse_keyword(Keyword::NULL) {
+                        Some(FormatClause::Null)
+                    } else {
+                        Some(FormatClause::Identifier(self.parse_identifier()?))
+                    }
+                } else {
+                    None
+                };
                 Ok(Statement::ExplainTable {
                     describe_alias,
                     hive_format,
                     has_table_keyword,
                     table_name,
+                    format_clause,
                 })
             }
         }

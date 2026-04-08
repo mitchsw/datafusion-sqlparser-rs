@@ -1722,11 +1722,49 @@ fn parse_explain_table() {
             hive_format,
             has_table_keyword,
             table_name,
+            format_clause,
         } => {
             pretty_assertions::assert_eq!(describe_alias, DescribeAlias::Explain);
             pretty_assertions::assert_eq!(hive_format, None);
             pretty_assertions::assert_eq!(has_table_keyword, true);
             pretty_assertions::assert_eq!("test_identifier", table_name.to_string());
+            pretty_assertions::assert_eq!(format_clause, None);
+        }
+        _ => panic!("Unexpected Statement, must be ExplainTable"),
+    }
+}
+
+#[test]
+fn describe_table_with_format_clause() {
+    clickhouse().verified_stmt("DESCRIBE system.tables FORMAT json");
+    clickhouse().verified_stmt("DESC system.tables FORMAT JSONCompact");
+    clickhouse().verified_stmt("DESCRIBE TABLE system.tables FORMAT TabSeparated");
+
+    match clickhouse().verified_stmt("DESCRIBE system.tables FORMAT json") {
+        Statement::ExplainTable {
+            describe_alias,
+            hive_format,
+            has_table_keyword,
+            table_name,
+            format_clause,
+        } => {
+            pretty_assertions::assert_eq!(describe_alias, DescribeAlias::Describe);
+            pretty_assertions::assert_eq!(hive_format, None);
+            pretty_assertions::assert_eq!(has_table_keyword, false);
+            pretty_assertions::assert_eq!("system.tables", table_name.to_string());
+            pretty_assertions::assert_eq!(
+                format_clause,
+                Some(FormatClause::Identifier(Ident::new("json")))
+            );
+        }
+        _ => panic!("Unexpected Statement, must be ExplainTable"),
+    }
+
+    match clickhouse().verified_stmt("DESCRIBE TABLE system.tables FORMAT NULL") {
+        Statement::ExplainTable {
+            format_clause, ..
+        } => {
+            pretty_assertions::assert_eq!(format_clause, Some(FormatClause::Null));
         }
         _ => panic!("Unexpected Statement, must be ExplainTable"),
     }

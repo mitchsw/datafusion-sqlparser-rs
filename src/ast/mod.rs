@@ -4438,6 +4438,10 @@ pub enum Statement {
         /// Table name
         #[cfg_attr(feature = "visitor", visit(with = "visit_relation"))]
         table_name: ObjectName,
+        /// Optional output format for ClickHouse `DESCRIBE TABLE ... FORMAT json`
+        ///
+        /// [ClickHouse](https://clickhouse.com/docs/en/sql-reference/statements/describe-table)
+        format_clause: Option<FormatClause>,
     },
     /// ```sql
     /// [EXPLAIN | DESC | DESCRIBE]  <statement>
@@ -4885,6 +4889,7 @@ impl fmt::Display for Statement {
                 hive_format,
                 has_table_keyword,
                 table_name,
+                format_clause,
             } => {
                 write!(f, "{describe_alias} ")?;
 
@@ -4895,7 +4900,13 @@ impl fmt::Display for Statement {
                     write!(f, "TABLE ")?;
                 }
 
-                write!(f, "{table_name}")
+                write!(f, "{table_name}")?;
+
+                if let Some(format) = format_clause {
+                    write!(f, " {format}")?;
+                }
+
+                Ok(())
             }
             Statement::Explain {
                 describe_alias,
