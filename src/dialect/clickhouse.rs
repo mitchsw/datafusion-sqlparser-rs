@@ -16,6 +16,8 @@
 // under the License.
 
 use crate::dialect::Dialect;
+use crate::keywords::Keyword;
+use crate::parser::Parser;
 
 /// A [`Dialect`] for [ClickHouse](https://clickhouse.com/).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -140,5 +142,17 @@ impl Dialect for ClickHouseDialect {
     /// See <https://clickhouse.com/docs/sql-reference/statements/select#replace>
     fn supports_select_wildcard_replace(&self) -> bool {
         true
+    }
+
+    /// `FORMAT` and `SETTINGS` are query-level ClickHouse clauses parsed in
+    /// `parse_query()` after `parse_select()` returns. Without this override
+    /// they get consumed as implicit column aliases (e.g. `SELECT 1 FORMAT`
+    /// becomes `SELECT 1 AS FORMAT`), preventing the downstream FORMAT/SETTINGS
+    /// parsing from ever seeing the keyword.
+    fn is_select_item_alias(&self, explicit: bool, kw: &Keyword, parser: &mut Parser) -> bool {
+        if !explicit && matches!(kw, Keyword::FORMAT | Keyword::SETTINGS) {
+            return false;
+        }
+        explicit || self.is_column_alias(kw, parser)
     }
 }
