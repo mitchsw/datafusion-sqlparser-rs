@@ -61,6 +61,10 @@ impl Dialect for GenericDialect {
         true
     }
 
+    fn supports_tuple_index_syntax(&self) -> bool {
+        true
+    }
+
     fn supports_match_recognize(&self) -> bool {
         true
     }

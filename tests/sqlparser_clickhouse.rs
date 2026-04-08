@@ -1729,6 +1729,84 @@ fn test_parse_not_null_in_column_options() {
     );
 }
 
+#[test]
+fn parse_tuple_element_access() {
+    // Simple tuple index: t.1
+    let sql = "SELECT t.1 FROM t";
+    let select = clickhouse_and_generic().verified_only_select(sql);
+    match expr_from_projection(&select.projection[0]) {
+        Expr::CompoundFieldAccess { root, access_chain } => {
+            assert_eq!(root.as_ref(), &Identifier(Ident::new("t")));
+            assert_eq!(
+                *access_chain,
+                vec![AccessExpr::Dot(Expr::value(number("1")))]
+            );
+        }
+        other => panic!("Expected CompoundFieldAccess, got: {other:?}"),
+    }
+
+    // Multi-digit index
+    clickhouse_and_generic().verified_only_select("SELECT t.123 FROM t");
+
+    // Parenthesized tuple literal
+    let sql = "SELECT (1, 2, 3).2";
+    let select = clickhouse_and_generic().verified_only_select(sql);
+    match expr_from_projection(&select.projection[0]) {
+        Expr::CompoundFieldAccess { root, access_chain } => {
+            assert!(matches!(root.as_ref(), Expr::Tuple(_)));
+            assert_eq!(
+                *access_chain,
+                vec![AccessExpr::Dot(Expr::value(number("2")))]
+            );
+        }
+        other => panic!("Expected CompoundFieldAccess, got: {other:?}"),
+    }
+
+    // Function result
+    clickhouse_and_generic().verified_only_select("SELECT getTuple().1");
+
+    // After subscript: arr[0].1 (ClickHouse only; GenericDialect treats
+    // brackets as array type syntax rather than subscript access)
+    let sql = "SELECT arr[0].1 FROM arr";
+    let select = clickhouse().verified_only_select(sql);
+    match expr_from_projection(&select.projection[0]) {
+        Expr::CompoundFieldAccess { root, access_chain } => {
+            assert_eq!(root.as_ref(), &Identifier(Ident::new("arr")));
+            assert_eq!(access_chain.len(), 2);
+            assert!(matches!(&access_chain[0], AccessExpr::Subscript(_)));
+            assert_eq!(access_chain[1], AccessExpr::Dot(Expr::value(number("1"))));
+        }
+        other => panic!("Expected CompoundFieldAccess, got: {other:?}"),
+    }
+
+    // Chained access: t.1.2
+    let sql = "SELECT t.1.2 FROM t";
+    let select = clickhouse_and_generic().verified_only_select(sql);
+    match expr_from_projection(&select.projection[0]) {
+        Expr::CompoundFieldAccess { root, access_chain } => {
+            assert_eq!(root.as_ref(), &Identifier(Ident::new("t")));
+            assert_eq!(
+                *access_chain,
+                vec![
+                    AccessExpr::Dot(Expr::value(number("1"))),
+                    AccessExpr::Dot(Expr::value(number("2"))),
+                ]
+            );
+        }
+        other => panic!("Expected CompoundFieldAccess, got: {other:?}"),
+    }
+
+    // Mixed tuple index and column access in the same SELECT
+    clickhouse_and_generic().verified_only_select("SELECT t.1, t.col, t.2 FROM t");
+
+    // In WHERE clause
+    clickhouse_and_generic()
+        .verified_only_select("SELECT * FROM t WHERE tuple_col.1 > 0");
+
+    // Decimal numbers remain unaffected
+    clickhouse_and_generic().verified_only_select("SELECT 3.14");
+}
+
 fn clickhouse() -> TestedDialects {
     TestedDialects::new(vec![Box::new(ClickHouseDialect {})])
 }
