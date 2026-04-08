@@ -3041,11 +3041,13 @@ fn parse_explain_table() {
             hive_format,
             has_table_keyword,
             table_name,
+            format_clause,
         } => {
             assert_eq!(describe_alias, DescribeAlias::Explain);
             assert_eq!(hive_format, None);
             assert_eq!(has_table_keyword, true);
             assert_eq!("test_identifier", table_name.to_string());
+            assert_eq!(format_clause, None);
         }
         _ => panic!("Unexpected Statement, must be ExplainTable"),
     }
