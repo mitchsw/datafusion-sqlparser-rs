@@ -451,6 +451,13 @@ pub trait Dialect: Debug + Any {
         false
     }
 
+    /// Returns true if the dialect supports accessing tuple elements by numeric
+    /// index using dot notation, e.g. `tuple.1`, `(1, 'a').2`.
+    /// See <https://clickhouse.com/docs/sql-reference/data-types/tuple#referring-to-tuple-elements>
+    fn supports_tuple_index_syntax(&self) -> bool {
+        false
+    }
+
     /// Returns true if the dialect supports identifiers starting with a numeric
     /// prefix such as tables named `59901_user_login`
     fn supports_numeric_prefix(&self) -> bool {

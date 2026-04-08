@@ -1967,6 +1967,19 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
+            } else if self.dialect.supports_tuple_index_syntax()
+                && matches!(&self.peek_token_ref().token, Token::Number(s, _) if s.starts_with('.'))
+            {
+                // The tokenizer produces a single Number(".N") token for dot-digit
+                // sequences like `.1`. In tuple index context (`tuple.1`), split it
+                // into a dot-access with a numeric value.
+                let tok = self.next_token();
+                if let Token::Number(s, _) = tok.token {
+                    let num_str = s[1..].to_string();
+                    let value = Value::Number(Self::parse(num_str, tok.span.start)?, false)
+                        .with_span(tok.span);
+                    chain.push(AccessExpr::Dot(Expr::Value(value)));
+                }
             } else if !self.dialect.supports_partiql()
                 && self.peek_token_ref().token == Token::LBracket
             {

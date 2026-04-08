@@ -64,6 +64,11 @@ impl Dialect for ClickHouseDialect {
         true
     }
 
+    /// See <https://clickhouse.com/docs/sql-reference/data-types/tuple#referring-to-tuple-elements>
+    fn supports_tuple_index_syntax(&self) -> bool {
+        true
+    }
+
     // ClickHouse uses this for some FORMAT expressions in `INSERT` context, e.g. when inserting
     // with FORMAT JSONEachRow a raw JSON key-value expression is valid and expected.
     //
