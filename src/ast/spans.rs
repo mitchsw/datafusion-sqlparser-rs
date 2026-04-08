@@ -1624,6 +1624,14 @@ impl Spanned for Expr {
             Expr::Prior(expr) => expr.span(),
             Expr::Lambda(_) => Span::empty(),
             Expr::MemberOf(member_of) => member_of.value.span().union(&member_of.array.span()),
+            Expr::Ternary {
+                condition,
+                if_true,
+                if_false,
+            } => condition
+                .span()
+                .union(&if_true.span())
+                .union(&if_false.span()),
         }
     }
 }

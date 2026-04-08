@@ -1729,6 +1729,193 @@ fn test_parse_not_null_in_column_options() {
     );
 }
 
+// ----- Ternary operator tests -----
+
+#[test]
+fn parse_ternary_simple() {
+    clickhouse().verified_stmt("SELECT a ? b : c");
+    clickhouse().verified_stmt("SELECT a > 0 ? 'yes' : 'no'");
+}
+
+#[test]
+fn parse_ternary_nested_in_then() {
+    // Inner `?:` consumed in the then-expression: a ? (b ? c : d) : e
+    let select = clickhouse().verified_only_select("SELECT a ? b ? c : d : e");
+    match &select.projection[0] {
+        UnnamedExpr(Expr::Ternary {
+            condition,
+            if_true,
+            if_false,
+        }) => {
+            assert_eq!(condition.to_string(), "a");
+            assert!(
+                matches!(if_true.as_ref(), Expr::Ternary { .. }),
+                "then-expression should be a nested ternary, got: {if_true}"
+            );
+            assert_eq!(if_false.to_string(), "e");
+        }
+        other => panic!("Expected Ternary, got: {other:?}"),
+    }
+}
+
+#[test]
+fn parse_ternary_triple_nested_in_then() {
+    // a ? (b ? (c ? d : e) : f) : g
+    let select =
+        clickhouse().verified_only_select("SELECT a ? b ? c ? d : e : f : g");
+    match &select.projection[0] {
+        UnnamedExpr(Expr::Ternary {
+            condition,
+            if_true,
+            if_false,
+        }) => {
+            assert_eq!(condition.to_string(), "a");
+            assert_eq!(if_false.to_string(), "g");
+            match if_true.as_ref() {
+                Expr::Ternary {
+                    condition: c2,
+                    if_true: t2,
+                    if_false: f2,
+                } => {
+                    assert_eq!(c2.to_string(), "b");
+                    assert_eq!(f2.to_string(), "f");
+                    assert!(
+                        matches!(t2.as_ref(), Expr::Ternary { .. }),
+                        "innermost then should be a ternary, got: {t2}"
+                    );
+                }
+                other => panic!("Expected nested Ternary in then, got: {other:?}"),
+            }
+        }
+        other => panic!("Expected Ternary, got: {other:?}"),
+    }
+}
+
+#[test]
+fn parse_ternary_nested_in_both() {
+    // a ? (b ? c : d) : (e ? f : g)
+    let select =
+        clickhouse().verified_only_select("SELECT a ? b ? c : d : e ? f : g");
+    match &select.projection[0] {
+        UnnamedExpr(Expr::Ternary {
+            condition,
+            if_true,
+            if_false,
+        }) => {
+            assert_eq!(condition.to_string(), "a");
+            assert!(
+                matches!(if_true.as_ref(), Expr::Ternary { .. }),
+                "then should be ternary, got: {if_true}"
+            );
+            assert!(
+                matches!(if_false.as_ref(), Expr::Ternary { .. }),
+                "else should be ternary, got: {if_false}"
+            );
+        }
+        other => panic!("Expected Ternary, got: {other:?}"),
+    }
+}
+
+#[test]
+fn parse_ternary_right_associative_else() {
+    // a ? b : (c ? d : e)
+    let select = clickhouse().verified_only_select("SELECT a ? b : c ? d : e");
+    match &select.projection[0] {
+        UnnamedExpr(Expr::Ternary {
+            condition,
+            if_true,
+            if_false,
+        }) => {
+            assert_eq!(condition.to_string(), "a");
+            assert_eq!(if_true.to_string(), "b");
+            match if_false.as_ref() {
+                Expr::Ternary {
+                    condition: c2,
+                    if_true: t2,
+                    if_false: f2,
+                } => {
+                    assert_eq!(c2.to_string(), "c");
+                    assert_eq!(t2.to_string(), "d");
+                    assert_eq!(f2.to_string(), "e");
+                }
+                other => panic!("Expected nested Ternary in else, got: {other:?}"),
+            }
+        }
+        other => panic!("Expected Ternary, got: {other:?}"),
+    }
+}
+
+#[test]
+fn parse_ternary_triple_right_associative_else() {
+    // a ? b : (c ? d : (e ? f : g))
+    let select =
+        clickhouse().verified_only_select("SELECT a ? b : c ? d : e ? f : g");
+    match &select.projection[0] {
+        UnnamedExpr(Expr::Ternary {
+            condition,
+            if_true,
+            if_false,
+        }) => {
+            assert_eq!(condition.to_string(), "a");
+            assert_eq!(if_true.to_string(), "b");
+            match if_false.as_ref() {
+                Expr::Ternary {
+                    condition: c2,
+                    if_true: _,
+                    if_false: f2,
+                } => {
+                    assert_eq!(c2.to_string(), "c");
+                    assert!(
+                        matches!(f2.as_ref(), Expr::Ternary { .. }),
+                        "innermost else should be ternary, got: {f2}"
+                    );
+                }
+                other => panic!("Expected nested Ternary in else, got: {other:?}"),
+            }
+        }
+        other => panic!("Expected Ternary, got: {other:?}"),
+    }
+}
+
+#[test]
+fn parse_ternary_else_captures_operators() {
+    clickhouse().verified_stmt("SELECT a ? b : c + d");
+    clickhouse().verified_stmt("SELECT a ? b : c AND d");
+    clickhouse().verified_stmt("SELECT a ? b : c > 0");
+    clickhouse().verified_stmt("SELECT a ? b : NOT c");
+}
+
+#[test]
+fn parse_ternary_then_captures_operators() {
+    clickhouse().verified_stmt("SELECT a ? b OR c : d");
+    clickhouse().verified_stmt("SELECT a ? b AND c : d");
+}
+
+#[test]
+fn parse_ternary_condition_precedence() {
+    clickhouse().verified_stmt("SELECT a OR b ? c : d");
+    clickhouse().verified_stmt("SELECT a AND b ? c : d");
+    clickhouse().verified_stmt("SELECT a > 0 AND b < 10 ? c : d");
+}
+
+#[test]
+fn parse_ternary_context_boundaries() {
+    clickhouse().verified_stmt("SELECT a ? b : c, d ? e : f");
+    clickhouse().verified_stmt("SELECT a ? b : c FROM t");
+    clickhouse().verified_stmt("SELECT * FROM t WHERE a ? b : c");
+}
+
+#[test]
+fn parse_ternary_placeholder_coexistence() {
+    // Pure placeholder, no ternary
+    clickhouse().verified_stmt("SELECT * FROM t WHERE id = ?");
+}
+
+#[test]
+fn parse_ternary_parenthesized() {
+    clickhouse().verified_stmt("SELECT (a ? b : c) + d");
+}
+
 fn clickhouse() -> TestedDialects {
     TestedDialects::new(vec![Box::new(ClickHouseDialect {})])
 }
