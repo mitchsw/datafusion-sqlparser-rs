@@ -1541,6 +1541,14 @@ pub trait Dialect: Debug + Any {
         false
     }
 
+    /// Returns true if this dialect supports `EXISTS` as a standalone statement
+    /// (e.g., `EXISTS TABLE t`), as opposed to only as a subquery expression.
+    ///
+    /// [ClickHouse](https://clickhouse.com/docs/en/sql-reference/statements/exists)
+    fn supports_exists_statement(&self) -> bool {
+        false
+    }
+
     /// Returns true if this dialect supports the `INSTALL` statement.
     ///
     /// Example:

@@ -697,6 +697,11 @@ impl<'a> Parser<'a> {
                 Keyword::OPTIMIZE if self.dialect.supports_optimize_table() => {
                     self.parse_optimize_table()
                 }
+                // `EXISTS` as a standalone statement is clickhouse specific
+                // https://clickhouse.com/docs/en/sql-reference/statements/exists
+                Keyword::EXISTS if self.dialect.supports_exists_statement() => {
+                    self.parse_exists_statement()
+                }
                 // `COMMENT` is snowflake specific https://docs.snowflake.com/en/sql-reference/sql/comment
                 Keyword::COMMENT if self.dialect.supports_comment_on() => self.parse_comment(),
                 Keyword::PRINT => self.parse_print(),
@@ -18541,6 +18546,37 @@ impl<'a> Parser<'a> {
             partition,
             include_final,
             deduplicate,
+        })
+    }
+
+    /// ```sql
+    /// EXISTS [TEMPORARY] [TABLE|DATABASE] [db.]name [FORMAT format]
+    /// ```
+    /// [ClickHouse](https://clickhouse.com/docs/en/sql-reference/statements/exists)
+    pub fn parse_exists_statement(&mut self) -> Result<Statement, ParserError> {
+        let temporary = self.parse_keyword(Keyword::TEMPORARY);
+        let kind = match self.parse_one_of_keywords(&[Keyword::TABLE, Keyword::DATABASE]) {
+            Some(Keyword::TABLE) => Some(ExistsKind::Table),
+            Some(Keyword::DATABASE) => Some(ExistsKind::Database),
+            _ => None,
+        };
+        let name = self.parse_object_name(false)?;
+        let format_clause = if self.dialect.supports_select_format()
+            && self.parse_keyword(Keyword::FORMAT)
+        {
+            if self.parse_keyword(Keyword::NULL) {
+                Some(FormatClause::Null)
+            } else {
+                Some(FormatClause::Identifier(self.parse_identifier()?))
+            }
+        } else {
+            None
+        };
+        Ok(Statement::Exists {
+            kind,
+            temporary,
+            name,
+            format_clause,
         })
     }
 

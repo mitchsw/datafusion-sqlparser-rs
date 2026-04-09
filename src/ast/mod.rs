@@ -2430,6 +2430,28 @@ impl fmt::Display for ShowCreateObject {
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
+/// Object kinds for ClickHouse `EXISTS` statement.
+///
+/// [ClickHouse](https://clickhouse.com/docs/en/sql-reference/statements/exists)
+pub enum ExistsKind {
+    /// `EXISTS TABLE`
+    Table,
+    /// `EXISTS DATABASE`
+    Database,
+}
+
+impl fmt::Display for ExistsKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ExistsKind::Table => f.write_str("TABLE"),
+            ExistsKind::Database => f.write_str("DATABASE"),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 /// Objects that can be targeted by a `COMMENT` statement.
 pub enum CommentObject {
     /// A table column.
@@ -4443,6 +4465,27 @@ pub enum Statement {
         /// [ClickHouse](https://clickhouse.com/docs/en/sql-reference/statements/describe-table)
         format_clause: Option<FormatClause>,
     },
+    /// ClickHouse standalone `EXISTS` statement.
+    ///
+    /// ```sql
+    /// EXISTS [TEMPORARY] [TABLE|DATABASE] [db.]name [FORMAT format]
+    /// ```
+    ///
+    /// Returns a single `UInt8` column with value `0` (does not exist) or `1` (exists).
+    ///
+    /// [ClickHouse](https://clickhouse.com/docs/en/sql-reference/statements/exists)
+    Exists {
+        /// Optional object kind (`TABLE`, `DATABASE`).
+        /// `None` when the kind keyword is omitted (defaults to table).
+        kind: Option<ExistsKind>,
+        /// `EXISTS TEMPORARY TABLE ...`
+        temporary: bool,
+        /// The object name, optionally database-qualified.
+        #[cfg_attr(feature = "visitor", visit(with = "visit_relation"))]
+        name: ObjectName,
+        /// Optional ClickHouse `FORMAT` clause.
+        format_clause: Option<FormatClause>,
+    },
     /// ```sql
     /// [EXPLAIN | DESC | DESCRIBE]  <statement>
     /// ```
@@ -4906,6 +4949,25 @@ impl fmt::Display for Statement {
                     write!(f, " {format}")?;
                 }
 
+                Ok(())
+            }
+            Statement::Exists {
+                kind,
+                temporary,
+                name,
+                format_clause,
+            } => {
+                write!(f, "EXISTS")?;
+                if *temporary {
+                    write!(f, " TEMPORARY")?;
+                }
+                if let Some(k) = kind {
+                    write!(f, " {k}")?;
+                }
+                write!(f, " {name}")?;
+                if let Some(format) = format_clause {
+                    write!(f, " {format}")?;
+                }
                 Ok(())
             }
             Statement::Explain {

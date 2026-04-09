@@ -296,6 +296,7 @@ impl Spanned for Values {
 /// - [Statement::Prepare]
 /// - [Statement::Kill]
 /// - [Statement::ExplainTable]
+/// - [Statement::Exists]
 /// - [Statement::Explain]
 /// - [Statement::Savepoint]
 /// - [Statement::ReleaseSavepoint]
@@ -453,6 +454,7 @@ impl Spanned for Statement {
             Statement::Prepare { .. } => Span::empty(),
             Statement::Kill { .. } => Span::empty(),
             Statement::ExplainTable { .. } => Span::empty(),
+            Statement::Exists { .. } => Span::empty(),
             Statement::Explain { .. } => Span::empty(),
             Statement::Savepoint { .. } => Span::empty(),
             Statement::ReleaseSavepoint { .. } => Span::empty(),

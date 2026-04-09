@@ -116,6 +116,11 @@ impl Dialect for ClickHouseDialect {
         true
     }
 
+    /// See <https://clickhouse.com/docs/en/sql-reference/statements/exists>
+    fn supports_exists_statement(&self) -> bool {
+        true
+    }
+
     /// See <https://clickhouse.com/docs/en/sql-reference/statements/select/prewhere>
     fn supports_prewhere(&self) -> bool {
         true
