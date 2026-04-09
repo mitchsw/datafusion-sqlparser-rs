@@ -10369,6 +10369,10 @@ pub struct ShowStatementOptions {
     pub limit_from: Option<Value>,
     /// Optional filter position (infix or suffix) for `LIKE`/`FILTER`.
     pub filter_position: Option<ShowStatementFilterPosition>,
+    /// Optional output format for ClickHouse `SHOW ... FORMAT json`
+    ///
+    /// [ClickHouse](https://clickhouse.com/docs/en/sql-reference/statements/show)
+    pub format_clause: Option<FormatClause>,
 }
 
 impl Display for ShowStatementOptions {
@@ -10402,6 +10406,9 @@ impl Display for ShowStatementOptions {
                 None => String::new(),
             }
         )?;
+        if let Some(format) = &self.format_clause {
+            write!(f, " {format}")?;
+        }
         Ok(())
     }
 }

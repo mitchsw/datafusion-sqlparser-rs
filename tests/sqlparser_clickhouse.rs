@@ -1729,6 +1729,41 @@ fn test_parse_not_null_in_column_options() {
     );
 }
 
+#[test]
+fn show_with_format_clause() {
+    clickhouse_and_generic().verified_stmt("SHOW TABLES FORMAT json");
+    clickhouse_and_generic().verified_stmt("SHOW DATABASES FORMAT JSONCompact");
+    clickhouse_and_generic().verified_stmt("SHOW COLUMNS FROM t FORMAT TabSeparated");
+    clickhouse_and_generic().verified_stmt("SHOW TABLES FORMAT NULL");
+
+    match clickhouse_and_generic().verified_stmt("SHOW TABLES FORMAT json") {
+        Statement::ShowTables { show_options, .. } => {
+            pretty_assertions::assert_eq!(
+                show_options.format_clause,
+                Some(FormatClause::Identifier(Ident::new("json")))
+            );
+        }
+        _ => panic!("Unexpected Statement, must be ShowTables"),
+    }
+
+    match clickhouse_and_generic().verified_stmt("SHOW TABLES FORMAT NULL") {
+        Statement::ShowTables { show_options, .. } => {
+            pretty_assertions::assert_eq!(show_options.format_clause, Some(FormatClause::Null));
+        }
+        _ => panic!("Unexpected Statement, must be ShowTables"),
+    }
+
+    match clickhouse_and_generic().verified_stmt("SHOW DATABASES FORMAT TSV") {
+        Statement::ShowDatabases { show_options, .. } => {
+            pretty_assertions::assert_eq!(
+                show_options.format_clause,
+                Some(FormatClause::Identifier(Ident::new("TSV")))
+            );
+        }
+        _ => panic!("Unexpected Statement, must be ShowDatabases"),
+    }
+}
+
 fn clickhouse() -> TestedDialects {
     TestedDialects::new(vec![Box::new(ClickHouseDialect {})])
 }
