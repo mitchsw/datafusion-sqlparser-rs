@@ -19223,12 +19223,24 @@ impl<'a> Parser<'a> {
         let starts_with = self.maybe_parse_show_stmt_starts_with()?;
         let limit = self.maybe_parse_show_stmt_limit()?;
         let from = self.maybe_parse_show_stmt_from()?;
+        let format_clause = if self.dialect.supports_select_format()
+            && self.parse_keyword(Keyword::FORMAT)
+        {
+            if self.parse_keyword(Keyword::NULL) {
+                Some(FormatClause::Null)
+            } else {
+                Some(FormatClause::Identifier(self.parse_identifier()?))
+            }
+        } else {
+            None
+        };
         Ok(ShowStatementOptions {
             filter_position,
             show_in,
             starts_with,
             limit,
             limit_from: from,
+            format_clause,
         })
     }
 

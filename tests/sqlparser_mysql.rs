@@ -257,6 +257,7 @@ fn parse_show_columns() {
                 limit_from: None,
                 limit: None,
                 starts_with: None,
+                format_clause: None,
             }
         }
     );
@@ -278,6 +279,7 @@ fn parse_show_columns() {
                 limit_from: None,
                 limit: None,
                 starts_with: None,
+                format_clause: None,
             }
         }
     );
@@ -296,6 +298,7 @@ fn parse_show_columns() {
                 limit_from: None,
                 limit: None,
                 starts_with: None,
+                format_clause: None,
             }
         }
     );
@@ -314,6 +317,7 @@ fn parse_show_columns() {
                 limit_from: None,
                 limit: None,
                 starts_with: None,
+                format_clause: None,
             }
         }
     );
@@ -334,6 +338,7 @@ fn parse_show_columns() {
                 limit_from: None,
                 limit: None,
                 starts_with: None,
+                format_clause: None,
             }
         }
     );
@@ -354,6 +359,7 @@ fn parse_show_columns() {
                 limit_from: None,
                 limit: None,
                 starts_with: None,
+                format_clause: None,
             }
         }
     );
@@ -414,7 +420,8 @@ fn parse_show_tables() {
                 limit: None,
                 limit_from: None,
                 show_in: None,
-                filter_position: None
+                filter_position: None,
+                format_clause: None,
             }
         }
     );
@@ -435,7 +442,8 @@ fn parse_show_tables() {
                     parent_type: None,
                     parent_name: Some(ObjectName::from(vec![Ident::new("mydb")])),
                 }),
-                filter_position: None
+                filter_position: None,
+                format_clause: None,
             }
         }
     );
@@ -452,7 +460,8 @@ fn parse_show_tables() {
                 limit: None,
                 limit_from: None,
                 show_in: None,
-                filter_position: None
+                filter_position: None,
+                format_clause: None,
             }
         }
     );
@@ -469,7 +478,8 @@ fn parse_show_tables() {
                 limit: None,
                 limit_from: None,
                 show_in: None,
-                filter_position: None
+                filter_position: None,
+                format_clause: None,
             }
         }
     );
@@ -488,7 +498,8 @@ fn parse_show_tables() {
                 show_in: None,
                 filter_position: Some(ShowStatementFilterPosition::Suffix(
                     ShowStatementFilter::Like("pattern".into())
-                ))
+                )),
+                format_clause: None,
             }
         }
     );
@@ -507,7 +518,8 @@ fn parse_show_tables() {
                 show_in: None,
                 filter_position: Some(ShowStatementFilterPosition::Suffix(
                     ShowStatementFilter::Where(mysql_and_generic().verified_expr("1 = 2"))
-                ))
+                )),
+                format_clause: None,
             }
         }
     );
