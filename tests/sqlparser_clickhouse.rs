@@ -1729,6 +1729,48 @@ fn test_parse_not_null_in_column_options() {
     );
 }
 
+#[test]
+fn parse_exists_statement() {
+    clickhouse().verified_stmt("EXISTS TABLE t");
+    clickhouse().verified_stmt("EXISTS TEMPORARY TABLE t");
+    clickhouse().verified_stmt("EXISTS DATABASE mydb");
+    clickhouse().verified_stmt("EXISTS db.tbl");
+    clickhouse().verified_stmt("EXISTS TABLE t FORMAT json");
+
+    match clickhouse().verified_stmt("EXISTS TEMPORARY TABLE system.tables FORMAT json") {
+        Statement::Exists {
+            kind,
+            temporary,
+            name,
+            format_clause,
+        } => {
+            pretty_assertions::assert_eq!(kind, Some(ExistsKind::Table));
+            pretty_assertions::assert_eq!(temporary, true);
+            pretty_assertions::assert_eq!("system.tables", name.to_string());
+            pretty_assertions::assert_eq!(
+                format_clause,
+                Some(FormatClause::Identifier(Ident::new("json")))
+            );
+        }
+        _ => panic!("Unexpected Statement, must be Exists"),
+    }
+
+    match clickhouse().verified_stmt("EXISTS db.tbl") {
+        Statement::Exists { kind, temporary, .. } => {
+            pretty_assertions::assert_eq!(kind, None);
+            pretty_assertions::assert_eq!(temporary, false);
+        }
+        _ => panic!("Unexpected Statement, must be Exists"),
+    }
+
+    match clickhouse().verified_stmt("EXISTS DATABASE mydb") {
+        Statement::Exists { kind, .. } => {
+            pretty_assertions::assert_eq!(kind, Some(ExistsKind::Database));
+        }
+        _ => panic!("Unexpected Statement, must be Exists"),
+    }
+}
+
 fn clickhouse() -> TestedDialects {
     TestedDialects::new(vec![Box::new(ClickHouseDialect {})])
 }
